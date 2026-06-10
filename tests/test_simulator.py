@@ -15,10 +15,11 @@ def _browniana_vs_RK4(Q):
     X0_0 = [1,0]# initial displacement and velocity for simulation
     p0 = np.pi/2
 
-    dw_l = np.zeros(int(n*2*np.pi/dtau))#w = 1+dw
+    dw_l_ana = np.zeros(int(n*2*np.pi/dtau))#w = 1+dw
+    dw_l_sim = np.zeros((int(n*2*np.pi/dtau),4))#w = 1+dw
 
-    noise_browniana = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l, std_shotN, withShotNoise=False)
-    noise_RK4 = fc.solve_RK4(X0_0, dtau, Q, np.zeros((len(dw_l),4)),dw_l)
+    noise_browniana = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l_sim, std_shotN, withShotNoise=False)
+    noise_RK4 = fc.solve_RK4(X0_0, dtau, Q, np.zeros((len(dw_l_sim),4)),dw_l_sim)
     return np.all(np.isclose(noise_browniana, noise_RK4, atol=1e-6))
 
 def test_browniana_is_smae_with_RK4():
@@ -44,10 +45,11 @@ def _browniana_vs_analytical(Q):
     X0_0 = [1,0]# initial displacement and velocity for simulation
     p0 = 0
 
-    dw_l = np.zeros(int(n*2*np.pi/dtau))#w = 1+dw
+    dw_l_ana = np.zeros(int(n*2*np.pi/dtau))#w = 1+dw
+    dw_l_sim = np.zeros((int(n*2*np.pi/dtau),4))#w = 1+dw
 
-    noise_browniana = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l, std_shotN, withShotNoise=False)[:,0]
-    noise_analytical = fc.analytical_sol_ringdown(X0_0,Q,dw_l,dtau,p0)[:,1]
+    noise_browniana = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l_sim, std_shotN, withShotNoise=False)[:,0]
+    noise_analytical = fc.analytical_sol_ringdown(X0_0,Q,dw_l_ana,dtau,p0)[:,1]
     return np.all(np.isclose(noise_browniana, noise_analytical, atol=5e-2))
 
 def test_browniana_is_close_to_analytical():
@@ -77,17 +79,18 @@ def test_heatingup_signal():
     X0_0 = [1, 0]  # Initial displacement and velocity for simulation
     p0 = np.pi / 2
 
-    dw_l = np.zeros(int(n * 2 * np.pi / dtau))  # w = 1+dw
+    dw_l_ana = np.zeros(int(n * 2 * np.pi / dtau))  # w = 1+dw
+    dw_l_sim = np.zeros((int(n * 2 * np.pi / dtau),4))  # w = 1+dw
     N = 128
     noise_negon_sqm = 0
 
-    sig_analytical = fc.analytical_sol_ringdown(X0_0, Q, dw_l, dtau, p0)  # While generating the analytical trajectory, we also generate the correct time series
+    sig_analytical = fc.analytical_sol_ringdown(X0_0, Q, dw_l_ana, dtau, p0)  # While generating the analytical trajectory, we also generate the correct time series
     sig_analytical[:, 0] = sig_analytical[:, 0] / w0
     t = sig_analytical[:, 0]
 
     for i in range(N):
         X0_0 = [0,0]
-        noise_negon = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l, std_shotN, withShotNoise=False)
+        noise_negon = fc.brownian_simulator(T, k, Q, dtau, X0_0, dw_l_sim, std_shotN, withShotNoise=False)
         noise_negon_sqm += noise_negon[:,0]**2/N
 
     y_negon = kb * T*2 / k  * (1 - np.exp(-t *w0/ Q)) 
