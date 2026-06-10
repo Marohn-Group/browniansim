@@ -3,17 +3,18 @@ import numpy as np
 
 def harmosc_shiftw(X, Q, F,dw):
     """
-    Damped harmonic oscillator with random driving force. Note: this differential equation treats time as time*w0, displacement as x*w0, and momentum as velocity.
+    Damped harmonic oscillator with random driving force. Note: this differential equation treats time as time*w0, displacement as x, and momentum as velocity/w0.
     Parameters:
         X[array]: displacement, velocity.
         Q[float]: quality factor.
-        F[array]: force devided by mass and w0.
-        x[float]: displacement time w0.
-        p[float]: velocity.
-        dotx[float]: change of displacement time w0.
+        F[array]: force devided by mass and w0 squared.
+        dw[array]: frequency shift, dw = (w-w0)/w0.
+        x[float]: displacement.
+        p[float]: velocity/w0.
+        dotx[float]: change of displacement.
         dotp[float]: change of velocity.
     Return:
-        dotx, dotp[array]: change of displacement*w0 and velocity.
+        dotx, dotp[array]: change of displacement and velocity/w0.
     """
     x, p = X
     dotx = p
@@ -22,26 +23,33 @@ def harmosc_shiftw(X, Q, F,dw):
 
 def solve_RK4(X0, dtau, Q, F,dw):
     """
-    Solve the damped harmonic oscillator equation using the Runge-Kutta 4th order method.
+    Solve the damped harmonic oscillator equation using the Runge-Kutta 4th order method. This function is designed for the case where the frequency has a rapid change, so in our RK4 method, we need to simulate the frequency at t+dt/2.
     Parameters:
-        x[float]: displacement time w0.
-        p[float]: velocity.
+        X0[array[2]]: initial displacement, velocity devided by w0.
         dtau[float]: time step*w0.
         Q[float]: quality factor.
-        F[array[n,4]]: force devided by the mass.
+        F[array[n,4]]: force devided by the mass and w0 squared.
+        dw[array[n,4]]: effective frequency shift, dw = (w-w0)/w0.
     Return:
-        X[array]: displacement time w0, velocity.
+        X[array]: displacement, velocity devided by w0.
     """
-    X = np.zeros([np.shape(F)[0], 2])  # F is the force time-series. For the Euler method, each result corresponds to one F. For RK4, we need to use four identical F values for each step!
+    if len(X0) != 2:
+        raise ValueError("X0 must have 2 elements")
+    if F.ndim != 2 or F.shape[1] != 4:
+        raise ValueError("F must be a 2D array with 4 columns")
+    if dw.ndim != 2 or dw.shape[1] != 4:
+        raise ValueError("dw must be a 2D array with 4 columns")
+    if np.shape(dw)[0] != np.shape(F)[0]:
+        raise ValueError("dw and F must have the same length")
+    X = np.zeros([np.shape(F)[0], 2])  # F is the force time-series. For the Euler method, each result corresponds to one F. For RK4, we need to use four F values for each step!
     X[0] = X0
     for n in range(np.shape(F)[0]-1):
-        k1 = harmosc_shiftw(X[n], Q, F[n][0],dw[n])
-        k2 = harmosc_shiftw(X[n] + dtau * k1 / 2, Q, F[n][1],dw[n])
-        k3 = harmosc_shiftw(X[n] + dtau * k2 / 2, Q, F[n][2],dw[n])
-        k4 = harmosc_shiftw(X[n] + dtau * k3, Q, F[n][3],dw[n])
+        k1 = harmosc_shiftw(X[n], Q, F[n][0],dw[n][0])
+        k2 = harmosc_shiftw(X[n] + dtau * k1 / 2, Q, F[n][1],dw[n][1])
+        k3 = harmosc_shiftw(X[n] + dtau * k2 / 2, Q, F[n][2],dw[n][2])
+        k4 = harmosc_shiftw(X[n] + dtau * k3, Q, F[n][3],dw[n][3])
         X[n+1, :] =  X[n, :] + dtau * (k1 + 2 * k2 + 2 * k3 + k4) / 6
     return X
-
 
 def brownian_simulator(T, k, Q, dtau, X0, dw, std_shotN, withShotNoise=True):
     r"""
